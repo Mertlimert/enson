@@ -109,15 +109,21 @@ export class ProductService {
   }
 
   updateProduct(product: Product): Observable<Product> {
+    // Kullanıcıdan satıcı ID'sini al
+    const sellerId = this.authService.getCurrentUserId();
+    if (!sellerId) {
+      return throwError(() => new Error('Kullanıcı kimliği bulunamadı. Lütfen giriş yapın.'));
+    }
+
     const productData = {
       id: product.id,
       name: product.name,
       description: product.description,
-      price: product.price,
+      price: Number(product.price),
       image_url: product.image_url,
-      stock_quantity: product.stock_quantity,
-      category_id: product.category_id !== undefined ? Number(product.category_id) : null
-      // seller is managed by the backend based on ownership
+      stock_quantity: Number(product.stock_quantity),
+      category_id: product.category_id !== undefined ? Number(product.category_id) : null,
+      seller_id: sellerId // Satıcı ID'sini ekliyoruz
     };
 
     return this.http.put<Product>(`${this.apiUrl}/products/${product.id}`, productData).pipe(
