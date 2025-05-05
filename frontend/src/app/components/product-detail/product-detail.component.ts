@@ -16,7 +16,7 @@ import { User } from '../../models/user.model';
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './product-detail.component.html',
-  styleUrls: ['./product-detail.component.scss']
+  styleUrls: ['./product-detail.component.css']
 })
 export class ProductDetailComponent implements OnInit {
   @ViewChild('errorTemplate') errorTemplate!: TemplateRef<any>;

@@ -5,7 +5,7 @@ import { CartItem } from '../../models/cart-item.model';
 @Component({
   selector: 'app-cart-item',
   templateUrl: './cart-item.component.html',
-  styleUrls: ['./cart-item.component.scss'],
+  styleUrls: ['./cart-item.component.css'],
   standalone: true,
   imports: [CommonModule]
 })
