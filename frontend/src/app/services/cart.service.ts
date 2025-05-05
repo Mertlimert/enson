@@ -78,6 +78,12 @@ export class CartService {
     });
   }
 
+  // Ürünün sepette olup olmadığını ve mevcut miktarını kontrol et
+  private getCartItemQuantity(productId: number): number {
+    const existingItem = this.cartItems.find(item => item.product.id === productId);
+    return existingItem ? existingItem.quantity : 0;
+  }
+
   addToCart(product: Product, quantity: number = 1): Observable<Cart> {
     // Validate authentication first
     if (!this.authService.isLoggedIn()) {
@@ -88,6 +94,14 @@ export class CartService {
     const userId = this.authService.getCurrentUserId();
     if (!userId) {
       return throwError(() => new Error('Kullanıcı ID bulunamadı'));
+    }
+
+    // Stok kontrolü yap
+    const currentQuantityInCart = this.getCartItemQuantity(product.id!);
+    const newTotalQuantity = currentQuantityInCart + quantity;
+
+    if (newTotalQuantity > product.stock_quantity) {
+      return throwError(() => new Error(`Yetersiz stok: Bu üründen en fazla ${product.stock_quantity} adet ekleyebilirsiniz. Sepetinizde zaten ${currentQuantityInCart} adet bulunuyor.`));
     }
 
     this.loadingSubject.next(true);
@@ -105,6 +119,37 @@ export class CartService {
         console.error('Error adding to cart:', error);
         this.handleAuthError(error);
         return throwError(() => new Error(error.error?.detail || error.error?.message || 'Ürün sepete eklenemedi. Lütfen tekrar deneyin.'));
+      })
+    );
+  }
+
+  updateQuantity(productId: number, quantity: number): Observable<Cart> {
+    const userId = this.authService.getCurrentUserId();
+    if (!userId) {
+      return throwError(() => new Error('Kullanıcı ID bulunamadı'));
+    }
+
+    // Önce ürün bilgisini bulmaya çalış
+    const existingItem = this.cartItems.find(item => item.product.id === productId);
+    if (existingItem && existingItem.product) {
+      // Stok kontrolü yap
+      if (quantity > existingItem.product.stock_quantity) {
+        return throwError(() => new Error(`Stok sınırı aşıldı: Bu üründen en fazla ${existingItem.product.stock_quantity} adet ekleyebilirsiniz.`));
+      }
+    }
+
+    this.loadingSubject.next(true);
+    return this.http.put<Cart>(`${this.apiUrl}/${userId}/product/${productId}?quantity=${quantity}`, {}).pipe(
+      tap(cart => {
+        this.cartItems = cart.items || [];
+        this.cartSubject.next([...this.cartItems]);
+        this.loadingSubject.next(false);
+      }),
+      catchError(error => {
+        this.loadingSubject.next(false);
+        console.error('Error updating quantity:', error);
+        this.handleAuthError(error);
+        return throwError(() => new Error(error.error?.detail || error.error?.message || 'Miktar güncellenemedi. Lütfen tekrar deneyin.'));
       })
     );
   }
@@ -127,28 +172,6 @@ export class CartService {
         console.error('Error removing from cart:', error);
         this.handleAuthError(error);
         return throwError(() => new Error('Ürün sepetten çıkarılamadı. Lütfen tekrar deneyin.'));
-      })
-    );
-  }
-
-  updateQuantity(productId: number, quantity: number): Observable<Cart> {
-    const userId = this.authService.getCurrentUserId();
-    if (!userId) {
-      return throwError(() => new Error('Kullanıcı ID bulunamadı'));
-    }
-
-    this.loadingSubject.next(true);
-    return this.http.put<Cart>(`${this.apiUrl}/${userId}/product/${productId}?quantity=${quantity}`, {}).pipe(
-      tap(cart => {
-        this.cartItems = cart.items || [];
-        this.cartSubject.next([...this.cartItems]);
-        this.loadingSubject.next(false);
-      }),
-      catchError(error => {
-        this.loadingSubject.next(false);
-        console.error('Error updating quantity:', error);
-        this.handleAuthError(error);
-        return throwError(() => new Error(error.error?.detail || error.error?.message || 'Miktar güncellenemedi. Lütfen tekrar deneyin.'));
       })
     );
   }

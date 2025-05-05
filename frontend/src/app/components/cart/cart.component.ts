@@ -31,12 +31,12 @@ export class CartComponent implements OnInit {
     // First check authentication state
     this.authService.currentUser$.subscribe(user => {
       this.isLoggedIn = !!user;
-      
+
       if (this.isLoggedIn) {
         this.loadCartItems();
       }
     });
-    
+
     this.trackLoadingState();
   }
 
@@ -50,11 +50,15 @@ export class CartComponent implements OnInit {
     if (!this.isLoggedIn) {
       return;
     }
-    
+
     this.cartService.getCartItems().subscribe(items => {
       this.cartItems = items;
       this.totalPrice = this.cartService.getTotalPrice();
     });
+  }
+
+  handleStockExceeded(errorMessage: string): void {
+    this.alertService.error(errorMessage);
   }
 
   removeFromCart(productId: number | undefined): void {
@@ -92,6 +96,14 @@ export class CartComponent implements OnInit {
     if (productId !== undefined) {
       if (quantity > 0) {
         const itemToUpdate = this.cartItems.find(item => item.product.id === productId);
+
+        // Önce ürünün stok miktarını kontrol et
+        if (itemToUpdate && itemToUpdate.product && quantity > itemToUpdate.product.stock_quantity) {
+          const errorMessage = `Stok sınırı aşıldı: Bu üründen en fazla ${itemToUpdate.product.stock_quantity} adet ekleyebilirsiniz.`;
+          this.alertService.error(errorMessage);
+          return;
+        }
+
         this.cartService.updateQuantity(productId, quantity).subscribe({
           next: () => {
             // Cart updated successfully (handled by service)
@@ -131,10 +143,10 @@ export class CartComponent implements OnInit {
       }
     });
   }
-  
+
   goToLogin(): void {
-    this.router.navigate(['/login'], { 
-      queryParams: { returnUrl: this.router.url } 
+    this.router.navigate(['/login'], {
+      queryParams: { returnUrl: this.router.url }
     });
   }
 }
