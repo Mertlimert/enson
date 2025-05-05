@@ -74,6 +74,62 @@ export class AuthService {
     );
   }
 
+  // Admin için özel kullanıcı oluşturma metodu - oturum açmadan sadece kullanıcı kaydı yapar
+  adminRegister(userData: RegisterRequest): Observable<User> {
+    console.log('Admin registering new user with data:', userData);
+
+    // Ensure required fields are present and not empty
+    if (!userData.username || !userData.email || !userData.password) {
+      return throwError(() => ({ message: 'Username, email, and password are required' }));
+    }
+
+    // Create a user object with the correct structure matching backend expectations
+    const userToRegister = {
+      username: userData.username,
+      email: userData.email,
+      password: userData.password,
+      firstName: userData.firstName || '',
+      lastName: userData.lastName || '',
+      role: userData.role || 'USER',
+      banned: userData.banned || false
+    };
+
+    // Özel HTTP isteği ile direkt olarak işleyelim, Observable<HttpResponse> olarak değil Observable<User> olarak dönelim
+    return new Observable<User>(observer => {
+      // Backend HTTP isteği
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${this.apiUrl}/register`, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      // Mevcut oturumu korumak için token'ı yönetelim
+      const token = this.getAuthToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const response = JSON.parse(xhr.responseText);
+          console.log('Admin registration successful:', response);
+
+          // Başarılı cevabı döndür ama localStorage'e kaydetme
+          observer.next(response);
+          observer.complete();
+        } else {
+          console.error('Admin registration error:', xhr.statusText);
+          observer.error({ message: 'User registration failed: ' + xhr.statusText });
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error('Network error during admin registration');
+        observer.error({ message: 'Network error during registration' });
+      };
+
+      xhr.send(JSON.stringify(userToRegister));
+    });
+  }
+
   login(credentials: LoginRequest): Observable<User> {
     const loginData = {
       email: credentials.email.trim(),
@@ -111,7 +167,7 @@ export class AuthService {
 
   // User management methods
   getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.apiUrl}/all`).pipe(
+    return this.http.get<User[]>(`${this.apiUrl}`).pipe(
       catchError(this.handleError)
     );
   }

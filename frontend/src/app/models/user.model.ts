@@ -22,6 +22,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  banned: boolean;
   username: string;
   email: string;
   password: string;

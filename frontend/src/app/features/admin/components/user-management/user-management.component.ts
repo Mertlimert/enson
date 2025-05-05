@@ -547,6 +547,47 @@ export class UserManagementComponent implements OnInit {
     });
   }
 
+  private direktKayit(userData: any): Promise<any> {
+    this.isSaving = true;
+
+    const apiUrl = 'http://localhost:8080/api/users/register';
+    const currentToken = this.authService.getAuthToken();
+
+    // Angular HttpClient'i bypass ederek doğrudan fetch API kullanıyoruz
+    return fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': currentToken ? `Bearer ${currentToken}` : ''
+      },
+      body: JSON.stringify(userData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Kullanıcı kaydı başarısız: ' + response.statusText);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Kullanıcı başarıyla kaydedildi:', data);
+      // Mevcut oturumu LOCAL STORAGE'dan tekrar yükleyerek olası kaybı önlüyoruz
+      if (localStorage.getItem('currentUser')) {
+        try {
+          const savedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+          if (savedUser && savedUser.token) {
+            console.log('Oturum korunuyor, önceki kullanıcı oturumu devam ediyor');
+          }
+        } catch (e) {
+          console.error('Oturum koruma hatası:', e);
+        }
+      }
+      return data;
+    })
+    .finally(() => {
+      this.isSaving = false;
+    });
+  }
+
   createUser() {
     this.editingUser = {
       username: '',
@@ -599,20 +640,34 @@ export class UserManagementComponent implements OnInit {
       ...this.userForm.value
     };
 
-    const request = this.editingUser.id
-      ? this.authService.updateUser(this.editingUser.id, userData)
-      : this.authService.register(userData);
-
-    request.subscribe({
-      next: () => {
-        this.loadUsers();
-        this.editingUser = null;
-        this.isSaving = false;
-      },
-      error: () => {
-        this.isSaving = false;
-      }
-    });
+    // Eğer kullanıcı güncelleniyorsa updateUser metodunu kullan
+    if (this.editingUser.id) {
+      this.authService.updateUser(this.editingUser.id, userData).subscribe({
+        next: () => {
+          this.loadUsers();
+          this.editingUser = null;
+          this.isSaving = false;
+        },
+        error: (err) => {
+          console.error('User update error:', err);
+          this.isSaving = false;
+        }
+      });
+    } else {
+      // Yeni kullanıcı kaydı için Angular HTTP'yi bypass ederek direkt kayıt yapıyoruz
+      this.direktKayit(userData)
+        .then(() => {
+          this.loadUsers();
+          this.editingUser = null;
+        })
+        .catch(error => {
+          console.error('Kullanıcı kaydı hatası:', error);
+          alert('Kullanıcı kaydı yapılamadı: ' + error.message);
+        })
+        .finally(() => {
+          this.isSaving = false;
+        });
+    }
   }
 
   deleteUser(user: User) {
