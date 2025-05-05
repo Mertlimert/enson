@@ -88,7 +88,7 @@ export class CartComponent implements OnInit {
 
   updateQuantity(productId: number | undefined, quantity: number): void {
     if (!this.isLoggedIn) {
-      this.alertService.warn('Please log in to modify your cart.'); // Use AlertService
+      this.alertService.warn('Sepeti güncellemek için giriş yapmalısınız.');
       this.router.navigate(['/login']);
       return;
     }
@@ -108,13 +108,16 @@ export class CartComponent implements OnInit {
           next: () => {
             // Cart updated successfully (handled by service)
             if (itemToUpdate) {
-              this.alertService.success(`Quantity for '${itemToUpdate.product.name}' updated to ${quantity}.`); // Use AlertService
+              this.alertService.success(`'${itemToUpdate.product.name}' ürününün miktarı ${quantity} olarak güncellendi.`);
             }
           },
           error: (error) => {
             console.error('Error updating quantity:', error);
-            const message = error?.error?.message || error?.message || 'Failed to update quantity. Please try again.';
-            this.alertService.error(message); // Use AlertService
+            const message = error?.error?.message || error?.message || 'Miktar güncellenirken hata oluştu. Lütfen tekrar deneyin.';
+            this.alertService.error(message);
+
+            // Hata durumunda güncel sepet durumunu tekrar yükle
+            this.loadCartItems();
           }
         });
       } else {

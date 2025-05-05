@@ -149,7 +149,9 @@ export class CartService {
         this.loadingSubject.next(false);
         console.error('Error updating quantity:', error);
         this.handleAuthError(error);
-        return throwError(() => new Error(error.error?.detail || error.error?.message || 'Miktar güncellenemedi. Lütfen tekrar deneyin.'));
+
+        // Hata mesajını ilet
+        return throwError(() => new Error(error.error?.detail || error.error?.message || 'Miktar güncellenemedi. Stok sınırını aşmış olabilirsiniz.'));
       })
     );
   }
